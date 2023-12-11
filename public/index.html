@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Chat Application</title>
+    <link rel="stylesheet" href="style.css" />
+  </head>
+  <body>
+    <div class="chat-container">
+      <div id="message-container"></div>
+      <form id="message-form">
+        <input type="text" id="message-input" placeholder="Type a message..." />
+        <button type="submit">Send</button>
+      </form>
+
+      <div class="checkbox-container">
+        <label for="show-encrypted" class="btn-circle"
+          >Show encrypted messages:
+        </label>
+        <input type="checkbox" class="checkbox" id="show-encrypted" />
+      </div>
+    </div>
+
+    <script
+      src="https://cdnjs.cloudflare.com/ajax/libs/uuid/8.3.2/uuidv4.min.js"
+      integrity="sha512-BCMqEPl2dokU3T/EFba7jrfL4FxgY6ryUh4rRC9feZw4yWUslZ3Uf/lPZ5/5UlEjn4prlQTRfIPYQkDrLCZJXA=="
+      crossorigin="anonymous"
+      referrerpolicy="no-referrer"
+    ></script>
+    <script type="module" src="index.js"></script>
+  </body>
+</html>
