@@ -1,3 +1,4 @@
+import XTEA from "../xtea/xtea.js";
 import A51 from "../a51/a51.js";
 
 const clientId = uuidv4();
@@ -10,17 +11,36 @@ const messageContainer = document.getElementById("message-container");
 const messageInput = document.getElementById("message-input");
 const messageForm = document.getElementById("message-form");
 const checkbox = document.querySelector("#show-encrypted");
-
-const a51 = new A51();
+const radioButtons = document.querySelectorAll('input[name="algorithm"]');
 
 let showEncrypted = false;
+let selectedAlgorithm = document.querySelector(
+  'input[name="algorithm"]:checked'
+).value;
+const a51Cipher = new A51();
+const xteaCipher = new XTEA();
 messageInput.disabled = !userName;
 
 eventSource.addEventListener("newMessage", (event) => {
   const data = JSON.parse(event.data);
 
   if (userName !== data.clientName) {
-    const decryptedMessage = a51.decrypt(data.message);
+    let decryptedMessage;
+    switch (
+      data.cipher // Tip algoritma prosledjuje server
+    ) {
+      case "a51":
+        decryptedMessage = a51Cipher.decrypt(data.message);
+        break;
+
+      case "xtea":
+        decryptedMessage = xteaCipher.decrypt(data.message);
+        break;
+
+      default:
+        break;
+    }
+
     if (showEncrypted) {
       appendMessage(
         `${data.clientName} (encrypted): ${data.message}\n${data.clientName}: ${decryptedMessage}`
@@ -37,7 +57,19 @@ messageForm.addEventListener("submit", (e) => {
   const message = messageInput.value;
 
   if (message !== "" && message !== null && message !== undefined) {
-    const encryptedMessage = a51.encrypt(message);
+    let encryptedMessage;
+    switch (selectedAlgorithm) {
+      case "a51":
+        encryptedMessage = a51Cipher.encrypt(message);
+        break;
+
+      case "xtea":
+        encryptedMessage = xteaCipher.encrypt(message);
+        break;
+
+      default:
+        break;
+    }
     if (showEncrypted) {
       appendMessage(`You (encrypted): ${encryptedMessage}\nYou: ${message}`);
     } else {
@@ -50,6 +82,7 @@ messageForm.addEventListener("submit", (e) => {
         "Content-Type": "application/json",
         "Client-Name": userName,
         "Client-Id": clientId,
+        Cipher: selectedAlgorithm,
       },
       body: JSON.stringify({ encryptedMessage }),
     })
@@ -61,6 +94,14 @@ messageForm.addEventListener("submit", (e) => {
       });
   }
 });
+
+for (const radioButton of radioButtons) {
+  radioButton.addEventListener("change", () => {
+    selectedAlgorithm = document.querySelector(
+      'input[name="algorithm"]:checked'
+    ).value;
+  });
+}
 
 function appendMessage(message) {
   const messageElement = document.createElement("div");
@@ -80,7 +121,21 @@ function clearMessages() {
 function showEncryptedMessages(data) {
   data.forEach((message) => {
     const messageSplit = message.split(": ");
-    const decryptedMessage = a51.decrypt(messageSplit[1]);
+    // const decryptedMessage = cipher.decrypt(messageSplit[1]);  // Iz verzije sa A51
+    const nameAndCipher = messageSplit[0].split("/"); // ime/cipher
+    let decryptedMessage;
+    switch (nameAndCipher[1]) {
+      case "a51":
+        decryptedMessage = a51Cipher.encrypt(messageSplit[1]);
+        break;
+
+      case "xtea":
+        decryptedMessage = xteaCipher.encrypt(messageSplit[1]);
+        break;
+
+      default:
+        break;
+    }
 
     if (messageSplit[0] === userName) {
       appendMessage(
@@ -88,7 +143,7 @@ function showEncryptedMessages(data) {
       );
     } else {
       appendMessage(
-        `${messageSplit[0]} (encrypted): ${messageSplit[1]}\n${messageSplit[0]}: ${decryptedMessage}`
+        `${nameAndCipher[0]} (encrypted): ${messageSplit[1]}\n${nameAndCipher[0]}: ${decryptedMessage}`
       );
     }
   });
@@ -96,13 +151,28 @@ function showEncryptedMessages(data) {
 
 function showDecryptedMessages(data) {
   data.forEach((message) => {
-    const messageSplit = message.split(": ");
-    const decryptedMessage = a51.decrypt(messageSplit[1]);
+    const messageSplit = message.split(": "); // ime/cipher: poruka
+    // const decryptedMessage = cipher.decrypt(messageSplit[1]);  // Iz verzije sa A51
+    const nameAndCipher = messageSplit[0].split("/"); // ime/cipher
+    let decryptedMessage;
+    console.log(nameAndCipher[0], nameAndCipher[1]);
+    switch (nameAndCipher[1]) {
+      case "a51":
+        decryptedMessage = a51Cipher.decrypt(messageSplit[1]);
+        break;
 
-    if (messageSplit[0] === userName) {
+      case "xtea":
+        decryptedMessage = xteaCipher.decrypt(messageSplit[1]);
+        break;
+
+      default:
+        break;
+    }
+
+    if (nameAndCipher[0] === userName) {
       appendMessage(`You: ${decryptedMessage}`);
     } else {
-      appendMessage(`${messageSplit[0]}: ${decryptedMessage}`);
+      appendMessage(`${nameAndCipher[0]}: ${decryptedMessage}`);
     }
   });
 }
@@ -126,7 +196,7 @@ function getMessages() {
       console.log(data);
 
       clearMessages();
-      a51.initializeRegisters();
+      a51Cipher.initializeRegisters();
 
       if (showEncrypted) {
         showEncryptedMessages(data);

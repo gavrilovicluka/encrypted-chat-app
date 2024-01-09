@@ -13,6 +13,7 @@ app.use(cors());
 
 app.use(express.static(path.join(__dirname, "public")));
 app.use("/a51", express.static(path.join(__dirname, "a51")));
+app.use("/xtea", express.static(path.join(__dirname, "xtea")));
 app.use("/config", express.static(path.join(__dirname, "config")));
 
 const messageEmitter = new EventEmitter();
@@ -39,6 +40,7 @@ app.get("/events", (req, res) => {
   clients[clientId] = userName;
 
   const onNewMessage = (data) => {
+    console.log(data);
     res.write(`event: newMessage\ndata: ${JSON.stringify(data)}\n\n`);
   };
 
@@ -57,10 +59,11 @@ app.get("/events", (req, res) => {
 app.post("/sendMessage", (req, res) => {
   const message = req.body.encryptedMessage;
   const clientName = req.header("Client-Name");
+  const cipher = req.header("Cipher");
 
-  messages.push(`${clientName}: ${message}`);
+  messages.push(`${clientName}/${cipher}: ${message}`);
 
-  messageEmitter.emit("newMessage", { message, clientName });
+  messageEmitter.emit("newMessage", { message, clientName, cipher });
 
   res.json({ success: true, message: "Poruka poslata" });
 });
