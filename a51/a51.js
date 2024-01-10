@@ -99,8 +99,10 @@ class A51 {
       const cipherLetter = parseInt(keystream, 2) ^ letterBinary;
 
       const letterAscii = String.fromCharCode(cipherLetter);
+      const letterUnicode = String.fromCodePoint(cipherLetter);
 
       this.cipherText += letterAscii;
+      // this.cipherText += letterUnicode;
     }
 
     return this.cipherText;
@@ -126,8 +128,11 @@ class A51 {
       const cipherLetter = parseInt(keystream, 2) ^ letterBinary;
 
       const letterAscii = String.fromCharCode(cipherLetter);
+      const letterUnicode = String.fromCodePoint(cipherLetter);
 
       this.plainText += letterAscii;
+      // this.plainText += letterUnicode;
+
     }
 
     return this.plainText;

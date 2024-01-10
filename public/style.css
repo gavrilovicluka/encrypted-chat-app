@@ -20,7 +20,7 @@ body {
 }
 
 #message-container {
-  height: 400px;
+  height: 370px;
   word-wrap: break-word;
   overflow-y: scroll;
   border: 1px solid #ccc;
@@ -46,6 +46,14 @@ body {
   padding: 10px;
   border: 1px solid #ccc;
   border-radius: 5px 0 0 5px;
+  justify-content: space-between;
+}
+
+.form-input {
+  display: flex;
+  flex-direction: column;
+  flex-grow: 1;
+  row-gap: 10px;
 }
 
 button[type="submit"] {
@@ -55,6 +63,7 @@ button[type="submit"] {
   border: none;
   border-radius: 0 5px 5px 0;
   cursor: pointer;
+  height: 37px;
 }
 
 .checkbox-container {

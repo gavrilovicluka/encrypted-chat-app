@@ -69,11 +69,11 @@ class XTEA {
     if (plainTextBlocks.length % 2 === 1) {
       plainTextBlocks.push([0, 0, 0, 0]);
     }
-
-    for (let i = 0; i < plainTextBlocks.length; i += 2) {
-      console.log(i);
+    
+    for (let i = 0; i < plainTextBlocks.length; i += 2) {      
       blocks.push(this.decimalToHex(plainTextBlocks[i]));
       blocks.push(this.decimalToHex(plainTextBlocks[i + 1]));
+      console.log(blocks)
 
       // Block - niz sa dva elementa u decimalnom zapisu [1633771776, 0]
       let block = [];
@@ -84,42 +84,52 @@ class XTEA {
       // const encryptedBlock = this.xtea_encrypt(block, key); // ako se koristi samo XTEA
 
       // OFB
-      let encryptedBlock = this.xtea_encrypt(iv, key); 
-
-      iv = encryptedBlock;
-      encryptedBlock[0] = encryptedBlock[0] ^ block[i];
-      encryptedBlock[1] = encryptedBlock[1] ^ block[i + 1];
+      let encryptedBlock = this.xtea_encrypt(iv); 
+      console.log(i, " ENCRYPTED BLOCK: ", encryptedBlock)
+      iv = [...encryptedBlock];
+      
+      encryptedBlock[0] = BigInt(encryptedBlock[0]) ^ BigInt(blocks[i]);   // Ciphertext = EncryptedOutput XOR Plaintext
+      encryptedBlock[1] = BigInt(encryptedBlock[1]) ^ BigInt(blocks[i + 1]);
       encryptedBlocks.push(encryptedBlock);
     }
 
     // console.log(encryptedBlocks); // [3469828722, 1534862451]
     // console.log(this.blocksToString(encryptedBlocks));
 
+    console.log('1', encryptedBlocks);
     return encryptedBlocks;
   }
 
   xteaDecryptBlocks(cipherTextBlocks, key) {
     console.log(cipherTextBlocks);  // normalan slucaj: [[925311952, 1550945596], [3342674534, 4175190515]]
                                     // los slucaj: 925311952,1550945596,3342674534,4175190515
-    const decryptedBlocks = [];
+    let decryptedBlocks = [];
     let iv = this.iv;
 
+    if(!Array.isArray(cipherTextBlocks)) {
+      cipherTextBlocks = this.toValidBlockForm(`${cipherTextBlocks}`);
+    }
+    console.log(cipherTextBlocks);
     // if (cipherTextBlocks.length > 10) {
     //     cipherTextBlocks = this.toValidBlockForm(cipherTextBlocks);
     // }
     
     for (const block of cipherTextBlocks) {
       // const decryptedBlock = this.xtea_decrypt(block, key);  // ako se koristi samo XTEA
-
+      console.log("SINLE BLOCK: ", block)
       // OFB
-      let decryptedBlock = this.xtea_encrypt(iv, key); // Kod OFB se za dekripciju koristi algoritam za enkripciju kodera bloka
-      iv = decryptedBlock;
-      decryptedBlock[0] = decryptedBlock[0] ^ block[0];
-      decryptedBlock[1] = decryptedBlock[1] ^ block[1];
+      let decryptedBlock = this.xtea_encrypt(iv); // Kod OFB se za dekripciju koristi algoritam za enkripciju kodera bloka
+      console.log('1', decryptedBlock);
+      iv = [...decryptedBlock];
+      console.log('2', iv);
+      decryptedBlock[0] = BigInt(decryptedBlock[0]) ^ BigInt(block[0]);
+      decryptedBlock[1] = BigInt(decryptedBlock[1]) ^ BigInt(block[1]);
 
+      console.log("DECRYPTED BLOCK: ", decryptedBlock)
       decryptedBlocks.push(decryptedBlock);
     }
 
+    console.log("BLOCKS: ", decryptedBlocks)
     return this.blocksToString(decryptedBlocks);
   }
 
@@ -207,6 +217,8 @@ class XTEA {
       }
       return acc;
     }, []);
+
+    return result
   }
 }
 
