@@ -57,10 +57,9 @@ class XTEA {
   }
 
   xteaEncryptBlocks(plainTextString, key) {
-
     const plainTextBlocks = this.stringToBlocks(plainTextString);
-    console.log(plainTextString);   // 'aaa'
-    console.log(plainTextBlocks);   // Za 'aaa': [97, 97, 97, 0], [0, 0, 0, 0]
+    // console.log(plainTextString); // 'aaa'
+    // console.log(plainTextBlocks); // Za 'aaa': [97, 97, 97, 0], [0, 0, 0, 0]
 
     let iv = this.iv;
     let encryptedBlocks = [];
@@ -69,26 +68,24 @@ class XTEA {
     if (plainTextBlocks.length % 2 === 1) {
       plainTextBlocks.push([0, 0, 0, 0]);
     }
-    
-    for (let i = 0; i < plainTextBlocks.length; i += 2) {      
+
+    for (let i = 0; i < plainTextBlocks.length; i += 2) {
       blocks.push(this.decimalToHex(plainTextBlocks[i]));
       blocks.push(this.decimalToHex(plainTextBlocks[i + 1]));
-      console.log(blocks)
+      // console.log(blocks);
 
       // Block - niz sa dva elementa u decimalnom zapisu [1633771776, 0]
       let block = [];
       block.push(blocks[i]);
-      block.push(blocks[i + 1]);    
-      
+      block.push(blocks[i + 1]);
 
       // const encryptedBlock = this.xtea_encrypt(block, key); // ako se koristi samo XTEA
 
       // OFB
-      let encryptedBlock = this.xtea_encrypt(iv); 
-      console.log(i, " ENCRYPTED BLOCK: ", encryptedBlock)
+      let encryptedBlock = this.xtea_encrypt(iv);
       iv = [...encryptedBlock];
-      
-      encryptedBlock[0] = BigInt(encryptedBlock[0]) ^ BigInt(blocks[i]);   // Ciphertext = EncryptedOutput XOR Plaintext
+
+      encryptedBlock[0] = BigInt(encryptedBlock[0]) ^ BigInt(blocks[i]); // Ciphertext = EncryptedOutput XOR Plaintext
       encryptedBlock[1] = BigInt(encryptedBlock[1]) ^ BigInt(blocks[i + 1]);
       encryptedBlocks.push(encryptedBlock);
     }
@@ -96,40 +93,31 @@ class XTEA {
     // console.log(encryptedBlocks); // [3469828722, 1534862451]
     // console.log(this.blocksToString(encryptedBlocks));
 
-    console.log('1', encryptedBlocks);
     return encryptedBlocks;
   }
 
   xteaDecryptBlocks(cipherTextBlocks, key) {
-    console.log(cipherTextBlocks);  // normalan slucaj: [[925311952, 1550945596], [3342674534, 4175190515]]
-                                    // los slucaj: 925311952,1550945596,3342674534,4175190515
+    // console.log(cipherTextBlocks);  // normalan slucaj: [[925311952, 1550945596], [3342674534, 4175190515]]
+    // los slucaj: 925311952,1550945596,3342674534,4175190515
     let decryptedBlocks = [];
     let iv = this.iv;
 
-    if(!Array.isArray(cipherTextBlocks)) {
+    if (!Array.isArray(cipherTextBlocks)) {
       cipherTextBlocks = this.toValidBlockForm(`${cipherTextBlocks}`);
     }
-    console.log(cipherTextBlocks);
-    // if (cipherTextBlocks.length > 10) {
-    //     cipherTextBlocks = this.toValidBlockForm(cipherTextBlocks);
-    // }
-    
+
     for (const block of cipherTextBlocks) {
       // const decryptedBlock = this.xtea_decrypt(block, key);  // ako se koristi samo XTEA
-      console.log("SINLE BLOCK: ", block)
+
       // OFB
       let decryptedBlock = this.xtea_encrypt(iv); // Kod OFB se za dekripciju koristi algoritam za enkripciju kodera bloka
-      console.log('1', decryptedBlock);
       iv = [...decryptedBlock];
-      console.log('2', iv);
       decryptedBlock[0] = BigInt(decryptedBlock[0]) ^ BigInt(block[0]);
       decryptedBlock[1] = BigInt(decryptedBlock[1]) ^ BigInt(block[1]);
 
-      console.log("DECRYPTED BLOCK: ", decryptedBlock)
       decryptedBlocks.push(decryptedBlock);
     }
 
-    console.log("BLOCKS: ", decryptedBlocks)
     return this.blocksToString(decryptedBlocks);
   }
 
@@ -150,17 +138,6 @@ class XTEA {
     return blocks;
   }
 
-  //   convertToHexBlock(array) {
-  //     const hexArray = this.convertToHexArray(array);
-  //     const concatenatedHex = hexArray.map((hex) => hex.slice(2)).join("");
-  //     const result = "0x" + concatenatedHex;
-  //     return result;
-  //   }
-
-  //   convertToHexArray(array) {
-  //     return array.map((value) => "0x" + value.toString(16));
-  //   }
-
   decimalToHex(decimalArr) {
     // Konvertovanje decimalne vrednosti u heksadecimalni string
     let hexString = decimalArr
@@ -174,7 +151,6 @@ class XTEA {
   }
 
   blocksToString(blocks) {
-    
     blocks = blocks
       .map((arr) =>
         arr.map((value) => this.removeZerosFromEnd(value.toString(16))).join("")
@@ -218,7 +194,7 @@ class XTEA {
       return acc;
     }, []);
 
-    return result
+    return result;
   }
 }
 

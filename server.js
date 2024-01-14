@@ -19,7 +19,6 @@ app.use("/config", express.static(path.join(__dirname, "config")));
 app.use("/blake256", express.static(path.join(__dirname, "blake256")));
 app.use("/fileUtils", express.static(path.join(__dirname, "fileUtils")));
 
-
 app.use(bodyParser.json());
 app.use(
   bodyParser.urlencoded({
@@ -39,6 +38,7 @@ let clients = {};
 let clientId;
 let userName;
 let files = [];
+let fileNameAndHash = [];
 
 app.get("/", (req, res) => {
   res.sendFile(__dirname, "/public/index.html");
@@ -77,16 +77,17 @@ app.post("/sendMessage", upload.single("file"), (req, res) => {
   const clientName = req.header("Client-Name");
   const cipher = req.header("Cipher");
 
-  const file = req.body.file;
-  let base64File;
+  let file = req.body.file;
   const fileName = req.body.fileName;
   const fileHash = req.body.fileHash;
 
-  messages.push(`${clientName}/${cipher}: ${message}/${fileName}/${fileHash}`);
-  files.push(file);
+  if (file) {
+    file = file.replaceAll("\r\n", "");
+  }
 
-  console.log(messages);
-  console.log(files);
+  messages.push(`${clientName}/${cipher}: ${message}`);
+  files.push(file);
+  fileNameAndHash.push(`${fileName}/${fileHash}`);
 
   messageEmitter.emit("newMessage", {
     message,
@@ -94,7 +95,7 @@ app.post("/sendMessage", upload.single("file"), (req, res) => {
     cipher,
     file,
     fileName,
-    fileHash
+    fileHash,
   });
 
   res.json({ success: true, message: "Poruka poslata" });
@@ -104,6 +105,7 @@ app.get("/getMessages", (req, res) => {
   const response = {
     messages: messages,
     files: files,
+    fileNameAndHash: fileNameAndHash,
   };
 
   res.json(response);
