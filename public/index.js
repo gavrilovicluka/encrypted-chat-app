@@ -1,5 +1,14 @@
 import XTEA from "../xtea/xtea.js";
 import A51 from "../a51/a51.js";
+import Blake256 from "../blake256/blake.js";
+import {
+  readArrayBuffer,
+  encryptFile,
+  createFileBlob,
+  getFileInputName,
+  generateFileHash,
+  generateStringHash,
+} from "../fileUtils/fileUtils.js";
 
 const clientId = uuidv4();
 const userName = prompt("Enter your name:");
@@ -18,34 +27,20 @@ let showEncrypted = false;
 let selectedAlgorithm = document.querySelector(
   'input[name="algorithm"]:checked'
 ).value;
+
 const a51Cipher = new A51();
 const xteaCipher = new XTEA();
+const blake = new Blake256();
+
 messageInput.disabled = !userName;
 
 eventSource.addEventListener("newMessage", (event) => {
   const data = JSON.parse(event.data);
-  // const base64File = data.file;
-  // Kreiraj Data URI za PDF fajl
-  // const dataUri = `data:application/pdf;base64,${base64File}`;
   const fileName = data.fileName;
+  const fileHash = data.fileHash;
   let dataUri = "";
 
-  //  // Pretvori base64 string u binarni format
-  //  const binaryFile = atob(base64File);
-  // console.log(data.file)
-  // // Konvertuj binarni fajl u Uint8Array
-  // const arrayBuffer = new ArrayBuffer(binaryFile.length);
-  // const uint8Array = new Uint8Array(arrayBuffer);
-  // for (let i = 0; i < binaryFile.length; i++) {
-  //   uint8Array[i] = binaryFile.charCodeAt(i);
-  // }
-  // // Kreira Blob objekat iz Uint8Array
-  // const blob = new Blob([uint8Array], { type: 'application/pdf' });
-  // // Kreira URL za Blob objekat
-  // const blobUrl = URL.createObjectURL(blob);
-  // // Otvori PDF fajl u novom prozoru/tabu
-  // window.open(blobUrl);
-
+  let isHashCorrect = false;
   let decryptedMessage = "";
   let decryptedFile = "";
   if (userName !== data.clientName) {
@@ -66,7 +61,6 @@ eventSource.addEventListener("newMessage", (event) => {
           break;
       }
     } else if (data.file) {
-      // decryptedFile = a51Cipher.decrypt(data.file);
       switch (
         data.cipher // Tip algoritma prosledjuje server
       ) {
@@ -82,24 +76,32 @@ eventSource.addEventListener("newMessage", (event) => {
         default:
           break;
       }
-      console.log(decryptedFile);
-
-      const base64File = btoa(encodeURIComponent(decryptedFile));
+      console.log(decryptedFile)
+      // const base64File = btoa(encodeURIComponent(decryptedFile));
+      const base64File = btoa(decryptedFile);
       console.log(base64File);
       dataUri = `data:application/pdf;base64,${base64File}`;
+
+      const receivedFileHash = generateStringHash(decryptedFile, blake);
+
+      if (fileHash === receivedFileHash) {
+        isHashCorrect = true;
+      }
     }
 
     if (showEncrypted) {
       appendMessage(
         `${data.clientName} (encrypted): ${data.message}\n${data.clientName}: ${decryptedMessage}`,
         fileName,
-        dataUri
+        dataUri,
+        isHashCorrect
       );
     } else {
       appendMessage(
         `${data.clientName}: ${decryptedMessage}`,
         fileName,
-        dataUri
+        dataUri,
+        isHashCorrect
       );
     }
   }
@@ -153,50 +155,36 @@ messageForm.addEventListener("submit", async (e) => {
     }
 
     const formData = new FormData();
-    // formData.append("file", file);
 
     if (file) {
-      encryptFile(file).then((encryptedFile) => {
-        // console.log(encryptedFile);
-        formData.append("file", encryptedFile);
-        formData.append("fileName", file.name);
+      encryptFile(file, selectedAlgorithm, a51Cipher, xteaCipher).then(
+        async (encryptedFile) => {
+          console.log(encryptedFile);
 
-        fetch("/sendMessage", {
-          method: "POST",
-          headers: {
-            "Client-Name": userName,
-            "Client-Id": clientId,
-            Cipher: selectedAlgorithm,
-          },
-          body: formData,
-        })
-          .then(() => {
-            messageInput.value = "";
-            fileInput.value = "";
+          const fileHash = await generateFileHash(file, blake);
+
+          formData.append("file", encryptedFile);
+          formData.append("fileName", file.name);
+          formData.append("fileHash", fileHash);
+
+          fetch("/sendMessage", {
+            method: "POST",
+            headers: {
+              "Client-Name": userName,
+              "Client-Id": clientId,
+              Cipher: selectedAlgorithm,
+            },
+            body: formData,
           })
-          .catch((error) => {
-            console.error("Error sending message:", error);
-          });
-      });
-
-      // encryptedFile = encryptFile(file); //file;
-      // console.log(encryptedFile);
-      // fetch("/sendMessage", {
-      //   method: "POST",
-      //   headers: {
-      //     "Client-Name": userName,
-      //     "Client-Id": clientId,
-      //     Cipher: selectedAlgorithm,
-      //   },
-      //   body: formData,
-      // })
-      //   .then(() => {
-      //     messageInput.value = "";
-      //     fileInput.value = "";
-      //   })
-      //   .catch((error) => {
-      //     console.error("Error sending message:", error);
-      //   });
+            .then(() => {
+              messageInput.value = "";
+              fileInput.value = "";
+            })
+            .catch((error) => {
+              console.error("Error sending message:", error);
+            });
+        }
+      );
     }
 
     if (showEncrypted) {
@@ -218,7 +206,7 @@ for (const radioButton of radioButtons) {
   });
 }
 
-function appendMessage(message, encryptedFile, dataUri) {
+function appendMessage(message, encryptedFile, dataUri, isHashCorrect) {
   const messageElement = document.createElement("div");
   messageElement.className = "message-text";
   messageElement.innerText = message;
@@ -238,31 +226,33 @@ function appendMessage(message, encryptedFile, dataUri) {
   ) {
     const fileDisplay = document.createElement("a");
     fileDisplay.innerText =
-      getFileInputName(isReceived, encryptedFile) || "Download file";
+      getFileInputName(isReceived, encryptedFile, fileInput) || "Download file";
+    
     fileDisplay.href = isReceived ? dataUri : createFileBlob(encryptedFile);
     fileDisplay.download =
-      getFileInputName(isReceived, encryptedFile) || "encrypted_file";
+      getFileInputName(isReceived, encryptedFile, fileInput) ||
+      "encrypted_file";
     messageElement.appendChild(fileDisplay);
+
+    if (isHashCorrect) {
+      const checkmark = document.createElement("span");
+      checkmark.innerText = "✔";
+      checkmark.style.color = "green";
+      checkmark.title = "File transferred correctly";
+      checkmark.style.marginLeft = "5px";
+      messageElement.appendChild(checkmark);
+    } else if (isHashCorrect !== undefined) {
+      const cross = document.createElement("span");
+      cross.innerText = "✘";
+      cross.style.color = "red";
+      cross.style.marginLeft = "5px";
+      cross.title = "Error transferring file";
+      messageElement.appendChild(cross);
+    }
   }
 
   messageContainer.append(messageElement);
   messageContainer.scrollTop = messageContainer.scrollHeight;
-}
-
-function createFileBlob(encryptedFile) {
-  const blob = new Blob([encryptedFile], { type: "application/octet-stream" });
-  return URL.createObjectURL(blob);
-}
-
-function getFileInputName(isReceived, file) {
-  if (isReceived) {
-    return file; // Kada prikazuje fajl koji je primljen sa servera
-  }
-
-  if (fileInput.files.length > 0) {
-    return fileInput.files[0].name;
-  }
-  return null;
 }
 
 function clearMessages() {
@@ -280,13 +270,13 @@ function showEncryptedMessages(data) {
     const messageSplit = message.split(": ");
     // const decryptedMessage = cipher.decrypt(messageSplit[1]);  // Iz verzije sa A51
     const nameAndCipher = messageSplit[0].split("/"); // ime/cipher
-    const messageAndFile = messageSplit[1].split("/"); // message/fileName
+    const messageAndFile = messageSplit[1].split("/"); // message/fileName/fileHash
     let receivedMessage = messageAndFile[0]; // Enkriptovana poruka koja stize sa servera
     let decryptedMessage = "";
     const file = files[index];
     let decryptedFile = "";
+    let isHashCorrect = false;
 
-    console.log(messageAndFile[0]);
     switch (nameAndCipher[1]) {
       case "a51":
         if (messageAndFile[0] && messageAndFile[0] !== "undefined") {
@@ -294,6 +284,10 @@ function showEncryptedMessages(data) {
         } else {
           decryptedFile = a51Cipher.decrypt(file);
           receivedMessage = "";
+          const receivedHash = generateStringHash(decryptedFile, blake);
+          if (receivedHash === messageAndFile[2]) {
+            isHashCorrect = true;
+          }
         }
         break;
 
@@ -305,6 +299,10 @@ function showEncryptedMessages(data) {
         } else {
           decryptedFile = xteaCipher.decrypt(file);
           receivedMessage = "";
+          const receivedHash = generateStringHash(decryptedFile, blake);
+          if (receivedHash === messageAndFile[2]) {
+            isHashCorrect = true;
+          }
         }
         break;
 
@@ -325,7 +323,8 @@ function showEncryptedMessages(data) {
       appendMessage(
         `${nameAndCipher[0]} (encrypted): ${receivedMessage}\n${nameAndCipher[0]}: ${decryptedMessage}`,
         messageAndFile[1],
-        dataUri
+        dataUri,
+        isHashCorrect
       );
     }
   });
@@ -336,13 +335,14 @@ function showDecryptedMessages(data) {
   const files = data.files;
 
   messages.forEach((message, index) => {
-    const messageSplit = message.split(": "); // ime/cipher: poruka/fileName
+    const messageSplit = message.split(": "); // ime/cipher: poruka/fileName/fileHash
     // const decryptedMessage = cipher.decrypt(messageSplit[1]);  // Iz verzije sa A51
     const nameAndCipher = messageSplit[0].split("/"); // ime/cipher
-    const messageAndFile = messageSplit[1].split("/"); // message/fileName
+    const messageAndFile = messageSplit[1].split("/"); // message/fileName/fileHash
     let decryptedMessage = "";
     const file = files[index];
     let decryptedFile = "";
+    let isHashCorrect = false;
 
     switch (nameAndCipher[1]) {
       case "a51":
@@ -351,6 +351,10 @@ function showDecryptedMessages(data) {
         } else {
           decryptedFile = a51Cipher.decrypt(file);
           messageAndFile[0] = "";
+          const receivedHash = generateStringHash(decryptedFile, blake);
+          if (receivedHash === messageAndFile[2]) {
+            isHashCorrect = true;
+          }
         }
         break;
 
@@ -360,6 +364,10 @@ function showDecryptedMessages(data) {
         } else {
           decryptedFile = xteaCipher.decrypt(file);
           messageAndFile[0] = "";
+          const receivedHash = generateStringHash(decryptedFile, blake);
+          if (receivedHash === messageAndFile[2]) {
+            isHashCorrect = true;
+          }
         }
         break;
 
@@ -376,7 +384,8 @@ function showDecryptedMessages(data) {
       appendMessage(
         `${nameAndCipher[0]}: ${decryptedMessage}`,
         messageAndFile[1],
-        dataUri
+        dataUri,
+        isHashCorrect
       );
     }
   });
@@ -412,53 +421,4 @@ function getMessages() {
     .catch((error) => {
       console.error("Error fetching messages:", error);
     });
-}
-
-function readArrayBuffer(file) {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-
-    reader.onload = function (e) {
-      const fileBuffer = new Uint8Array(e.target.result);
-      resolve(fileBuffer);
-    };
-
-    reader.onerror = function (e) {
-      reject(new Error("Error reading file."));
-    };
-
-    reader.readAsArrayBuffer(file);
-  });
-}
-
-async function encryptFile(file) {
-  try {
-    const fileBuffer = await readArrayBuffer(file);
-    let stringBuffer = "";
-
-    for (let i = 0; i < fileBuffer.length; i++) {
-      // stringBuffer += String.fromCodePoint(fileBuffer[i]);
-      stringBuffer += String.fromCharCode(fileBuffer[i]);
-    }
-    // console.log(stringBuffer);
-    // console.log(stringBuffer);
-
-    let encryptedMessage = "";
-    switch (selectedAlgorithm) {
-      case "a51":
-        encryptedMessage = a51Cipher.encrypt(stringBuffer);
-        break;
-
-      case "xtea":
-        encryptedMessage = xteaCipher.encrypt(stringBuffer);
-        break;
-
-      default:
-        break;
-    }
-
-    return encryptedMessage;
-  } catch (error) {
-    console.error(error);
-  }
 }

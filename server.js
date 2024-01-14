@@ -16,8 +16,10 @@ app.use(express.static(path.join(__dirname, "public")));
 app.use("/a51", express.static(path.join(__dirname, "a51")));
 app.use("/xtea", express.static(path.join(__dirname, "xtea")));
 app.use("/config", express.static(path.join(__dirname, "config")));
+app.use("/blake256", express.static(path.join(__dirname, "blake256")));
+app.use("/fileUtils", express.static(path.join(__dirname, "fileUtils")));
 
-// Povecanje maksimalne dozvoljene velicine tela zahteva
+
 app.use(bodyParser.json());
 app.use(
   bodyParser.urlencoded({
@@ -26,8 +28,6 @@ app.use(
     parameterLimit: 100000,
   })
 );
-// app.use(bodyParser.json({limit: '50mb'}));
-// app.use(bodyParser.urlencoded({limit: '50mb'}));
 
 const storage = multer.memoryStorage();
 const upload = multer({ storage: storage });
@@ -57,7 +57,6 @@ app.get("/events", (req, res) => {
   clients[clientId] = userName;
 
   const onNewMessage = (data) => {
-    // console.log(data);
     res.write(`event: newMessage\ndata: ${JSON.stringify(data)}\n\n`);
   };
 
@@ -78,29 +77,24 @@ app.post("/sendMessage", upload.single("file"), (req, res) => {
   const clientName = req.header("Client-Name");
   const cipher = req.header("Cipher");
 
-  // console.log(req.body.fileName);
   const file = req.body.file;
   let base64File;
   const fileName = req.body.fileName;
-  // console.log(req.file);
-  // console.log(req.file.buffer);
-  // if (file) {
-  //   const fileBuffer = file.buffer;
-  //   base64File = fileBuffer.toString("base64");
-  //   fileName = file.originalname;
-  // }
+  const fileHash = req.body.fileHash;
 
-  messages.push(`${clientName}/${cipher}: ${message}/${fileName}`);
-  // files.push(base64File);
+  messages.push(`${clientName}/${cipher}: ${message}/${fileName}/${fileHash}`);
   files.push(file);
+
   console.log(messages);
   console.log(files);
+
   messageEmitter.emit("newMessage", {
     message,
     clientName,
     cipher,
     file,
     fileName,
+    fileHash
   });
 
   res.json({ success: true, message: "Poruka poslata" });

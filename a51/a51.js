@@ -82,7 +82,7 @@ class A51 {
   encrypt(plainText) {
     this.plainText = plainText;
     this.cipherText = "";
-
+    
     for (let i = 0; i < this.plainText.length; i++) {
       let keystream = "";
       for (let j = 0; j < this.byteSize; j++) {
@@ -94,8 +94,7 @@ class A51 {
           this.z[this.sizeZ - 1];
         keystream += k;
       }
-      const letterBinary = this.plainText[i].charCodeAt(0); // decimal
-
+      const letterBinary = this.plainText[i].charCodeAt(0); // decimal      
       const cipherLetter = parseInt(keystream, 2) ^ letterBinary;
 
       const letterAscii = String.fromCharCode(cipherLetter);
@@ -111,7 +110,7 @@ class A51 {
   decrypt(cipherText) {
     this.cipherText = cipherText;
     this.plainText = "";
-
+    
     for (let i = 0; i < this.cipherText.length; i++) {
       let keystream = "";
       for (let j = 0; j < this.byteSize; j++) {
@@ -124,7 +123,6 @@ class A51 {
         keystream += k;
       }
       const letterBinary = this.cipherText[i].charCodeAt(0); // decimal
-
       const cipherLetter = parseInt(keystream, 2) ^ letterBinary;
 
       const letterAscii = String.fromCharCode(cipherLetter);
